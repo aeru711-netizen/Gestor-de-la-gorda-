@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Archivos de Mamá</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; max-width: 500px; margin: auto; }
+        h1 { font-size: 1.4rem; color: #007BFF; text-align: center; }
+        .box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, button { width: 100%; padding: 12px; margin-top: 10px; box-sizing: border-box; font-size: 1rem; }
+        button { background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        #estado { margin-top: 10px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Gestor de Mamá</h1>
+    
+    <div class="box">
+        <input type="file" id="archivoInput">
+        <button onclick="subirArchivo()">Subir a la Nube</button>
+        <p id="estado"></p>
+    </div>
+
+    <!-- Librería gratuita de Supabase para la web -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // PEGA AQUÍ TUS DATOS GRATIS DE SUPABASE
+        const SUPABASE_URL = 'TU_SUPABASE_URL_AQUÍ';
+        const SUPABASE_ANON_KEY = 'TU_SUPABASE_ANON_KEY_AQUÍ';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function subirArchivo() {
+            const input = document.getElementById('archivoInput');
+            const estado = document.getElementById('estado');
+            
+            if (input.files.length === 0) {
+                alert('Selecciona un archivo primero');
+                return;
+            }
+
+            const file = input.files[0];
+            estado.style.color = '#007BFF';
+            estado.innerText = 'Subiendo archivo...';
+
+            const { data, error } = await supabase.storage
+                .from('archivos-mama')
+                .upload(file.name, file, { upsert: true });
+
+            if (error) {
+                estado.style.color = 'red';
+                estado.innerText = 'Error: ' + error.message;
+            } else {
+                estado.style.color = 'green';
+                estado.innerText = '¡Subido con éxito! Ya puedes borrarlo del cel.';
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
