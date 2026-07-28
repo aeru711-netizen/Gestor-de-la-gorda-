@@ -3,60 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Archivos de Mamá</title>
+    <title>Gestor de Archivos - Mamá</title>
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; max-width: 500px; margin: auto; }
-        h1 { font-size: 1.4rem; color: #007BFF; text-align: center; }
-        .box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, button { width: 100%; padding: 12px; margin-top: 10px; box-sizing: border-box; font-size: 1rem; }
-        button { background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        #estado { margin-top: 10px; text-align: center; font-weight: bold; }
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .path { font-size: 14px; background: #eef2f7; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; }
+        .btn { background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 5px; margin-bottom: 10px; }
+        .btn:hover { background: #2980b9; }
+        .btn-folder { background: #e67e22; }
+        .btn-folder:hover { background: #d35400; }
+        input[type="file"], input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        ul { list-style: none; padding: 0; }
+        li { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        li a { color: #2980b9; text-decoration: none; word-break: break-all; max-width: 70%; }
+        li a:hover { text-decoration: underline; }
+        .actions button { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .actions button:hover { background: #c0392b; }
+        .loading { text-align: center; color: #7f8c8d; font-style: italic; }
     </style>
 </head>
 <body>
-    <h1>Gestor de Mamá</h1>
+
+<div class="container">
+    <h2>📁 Gestor de Archivos</h2>
     
-    <div class="box">
-        <input type="file" id="archivoInput">
-        <button onclick="subirArchivo()">Subir a la Nube</button>
-        <p id="estado"></p>
+    <div class="path" id="currentPath">Ruta actual: /</div>
+
+    <button class="btn" id="backBtn" style="display:none;" onclick="goBack()">⬅️ Volver atrás</button>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+    <!-- Crear Carpeta -->
+    <div>
+        <input type="text" id="folderNameInput" placeholder="Nombre de la nueva carpeta...">
+        <button class="btn btn-folder" onclick="createFolder()">📂 Crear Carpeta</button>
     </div>
 
-    <!-- Librería gratuita de Supabase para la web -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // PEGA AQUÍ TUS DATOS GRATIS DE SUPABASE
-        const SUPABASE_URL = 'sb_publishable_6SOOP42opdGMpUt0n7jTFg_5MZsXLTU';
-        const SUPABASE_ANON_KEY = 'sb_secret_67mAJI41UUlz_cdbccs3Xw_3OS1PQPV';
+    <!-- Subir Archivo -->
+    <div style="margin-top: 15px;">
+        <input type="file" id="fileInput">
+        <button class="btn" onclick="uploadFile()">⬆️ Subir Archivo aquí</button>
+    </div>
+
+    <p id="status" class="loading"></p>
+
+    <h3>Contenido:</h3>
+    <ul id="fileList"></ul>
+</div>
+
+<script>
+    // Configura tus credenciales de Supabase aquí:
+    const SUPABASE_URL = 'sb_publishable_6SOOP42opdGMpUt0n7jTFg_5MZsXLTU';
+    const SUPABASE_ANON_KEY = 'sb_secret_67mAJI41UUlz_cdbccs3Xw_3OS1PQPV';
+    const BUCKET_NAME = 'archivos-mama';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentFolder = '';
+
+    async function listFiles() {
+        const status = document.getElementById('status');
+        const fileList = document.getElementById('fileList');
+        const pathDiv = document.getElementById('currentPath');
+        const backBtn = document.getElementById('backBtn');
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        status.innerText = "Cargando archivos...";
+        fileList.innerHTML = "";
+        pathDiv.innerText = "Ruta actual: /" + currentFolder;
 
-        async function subirArchivo() {
-            const input = document.getElementById('archivoInput');
-            const estado = document.getElementById('estado');
-            
-            if (input.files.length === 0) {
-                alert('Selecciona un archivo primero');
-                return;
-            }
-
-            const file = input.files[0];
-            estado.style.color = '#007BFF';
-            estado.innerText = 'Subiendo archivo...';
-
-            const { data, error } = await supabase.storage
-                .from('archivos-mama')
-                .upload(file.name, file, { upsert: true });
-
-            if (error) {
-                estado.style.color = 'red';
-                estado.innerText = 'Error: ' + error.message;
-            } else {
-                estado.style.color = 'green';
-                estado.innerText = '¡Subido con éxito! Ya puedes borrarlo del cel.';
-                input.value = '';
-            }
+        if (currentFolder !== '') {
+            backBtn.style.display = 'inline-block';
+        } else {
+            backBtn.style.display = 'none';
         }
-    </script>
+
+        const { data, error } = await supabaseClient.storage.from(BUCKET_NAME).list(currentFolder, {
+            sortBy: { column: 'name', order: 'asc' }
+        });
+
+        if (error) {
+            status.innerText = "Error al cargar: " + error.message;
+            return;
+        }
+
+        status.innerText = "";
+
+        if (data.length === 0) {
+            fileList.innerHTML = "<li style='justify-content:center; color:#95a5a6;'>La carpeta está vacía</li>";
+            return;
+        }
+
+        data.forEach(item => {
+            const li = document.createElement('li');
+            
+            // Supabase representa las carpetas como elementos vacíos con un nombre que termina en '/' o metadatos especiales, 
+            // pero para navegar simularemos las carpetas con nombres o sufijos limpios.
+            const isFolder = item.id === null && !item.name.includes('.');
+
+            if (isFolder || item.name === '.emptyFolderPlaceholder') {
+                if(item.name === '.emptyFolderPlaceholder') return; // Ocultar marcador interno
+                
+                li.innerHTML = `
+                    <span style="font-weight:bold; color:#d35400; cursor:pointer;" onclick="openFolder('${item.name}')">
+                        📁 ${item.name}/
+                    </span>
+                    <div class="actions">
+                        <button onclick="deleteItem('${item.name}')">Borrar</button>
+                    </div>
+                `;
+            } else {
+                const filePath = currentFolder ? `${currentFolder}/${item.name}` : item.name;
+                const { data: publicUrlData } = supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+                
+                li.innerHTML = `
+                    <a href="${publicUrlData.publicUrl}" target="_blank">📄 ${item.name}</a>
+                    <div class="actions">
+                        <button onclick="deleteItem('${item.name}')">Borrar</button>
+                    </div>
+                `;
+            }
+            fileList.appendChild(li);
+        });
+    }
+
+    async function uploadFile() {
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+
+        if (fileInput.files.length === 0) {
+            alert("Por favor selecciona un archivo primero.");
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const filePath = currentFolder ? `${currentFolder}/${file.name}` : file.name;
+
+        status.innerText = "Subiendo archivo...";
+
+        const { data, error } = await supabaseClient.storage.from(BUCKET_NAME).upload(filePath, file, {
+            upsert: true
+        });
+
+        if (error) {
+            status.innerText = "Error al subir: " + error.message;
+        } else {
+            status.innerText = "¡Archivo subido con éxito!";
+            fileInput.value = "";
+            listFiles();
+        }
+    }
+
+    async function createFolder() {
+        const folderInput = document.getElementById('folderNameInput');
+        const folderName = folderInput.value.trim();
+        const status = document.getElementById('status');
+
+        if (!folderName) {
+            alert("Escribe un nombre para la carpeta.");
+            return;
+        }
+
+        // En Supabase, para crear una carpeta se sube un archivo vacío llamado .keep dentro de esa ruta
+        const folderPath = currentFolder ? `${currentFolder}/${folderName}/.keep` : `${folderName}/.keep`;
+        const emptyFile = new Blob([''], { type: 'text/plain' });
+
+        status.innerText = "Creando carpeta...";
+
+        const { error } = await supabaseClient.storage.from(BUCKET_NAME).upload(folderPath, emptyFile);
+
+        if (error) {
+            status.innerText = "Error al crear carpeta: " + error.message;
+        } else {
+            status.innerText = "¡Carpeta creada!";
+            folderInput.value = "";
+            listFiles();
+        }
+    }
+
+    function openFolder(folderName) {
+        currentFolder = currentFolder ? `${currentFolder}/${folderName}` : folderName;
+        listFiles();
+    }
+
+    function goBack() {
+        const parts = currentFolder.split('/');
+        parts.pop();
+        currentFolder = parts.join('/');
+        listFiles();
+    }
+
+    async function deleteItem(itemName) {
+        if (!confirm(`¿Estás seguro de eliminar "${itemName}"?`)) return;
+
+        const status = document.getElementById('status');
+        const targetPath = currentFolder ? `${currentFolder}/${itemName}` : itemName;
+
+        status.innerText = "Eliminando...";
+
+        // Nota: Si es una carpeta, se deben borrar sus elementos o el archivo .keep interno.
+        const { error } = await supabaseClient.storage.from(BUCKET_NAME).remove([targetPath]);
+
+        if (error) {
+            status.innerText = "Error al eliminar: " + error.message;
+        } else {
+            status.innerText = "Eliminado correctamente.";
+            listFiles();
+        }
+    }
+
+    // Cargar archivos al abrir la página
+    listFiles();
+</script>
+
 </body>
 </html>
+
