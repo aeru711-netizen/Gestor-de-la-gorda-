@@ -4,25 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Archivos - Mamá</title>
-    <!-- SDK de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #2c3e50; }
-        .path { font-size: 14px; background: #eef2f7; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; }
-        .btn { background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 5px; margin-bottom: 10px; }
-        .btn:hover { background: #2980b9; }
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; font-size: 20px; }
+        .path { font-size: 13px; background: #eef2f7; padding: 8px; border-radius: 6px; margin-bottom: 10px; word-break: break-all; }
+        .btn { background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; margin-top: 5px; }
         .btn-folder { background: #e67e22; }
-        .btn-folder:hover { background: #d35400; }
-        input[type="file"], input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        ul { list-style: none; padding: 0; }
-        li { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-        li a { color: #2980b9; text-decoration: none; word-break: break-all; max-width: 70%; }
-        li a:hover { text-decoration: underline; }
-        .actions button { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-        .actions button:hover { background: #c0392b; }
-        .loading { text-align: center; color: #7f8c8d; font-style: italic; }
+        .btn-danger { background: #e74c3c; padding: 5px 8px; font-size: 12px; }
+        input[type="file"], input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        ul { list-style: none; padding: 0; margin-top: 10px; }
+        li { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; gap: 10px; }
+        .file-info { display: flex; align-items: center; gap: 10px; overflow: hidden; max-width: 75%; }
+        .file-info img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+        li a { color: #2980b9; text-decoration: none; word-break: break-all; }
+        .loading { text-align: center; color: #7f8c8d; font-style: italic; font-size: 13px; margin: 10px 0; }
+        .section { background: #fafbfc; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #eaeaea; }
     </style>
 </head>
 <body>
@@ -30,22 +28,19 @@
 <div class="container">
     <h2>📁 Gestor de Archivos</h2>
     
-    <div class="path" id="currentPath">Ruta actual: /</div>
-
-    <button class="btn" id="backBtn" style="display:none;" onclick="goBack()">⬅️ Volver atrás</button>
-
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+    <div class="path" id="currentPath">Ruta: /</div>
+    <button class="btn" id="backBtn" style="display:none; background:#7f8c8d; margin-bottom:10px;" onclick="goBack()">⬅️ Volver atrás</button>
 
     <!-- Crear Carpeta -->
-    <div>
-        <input type="text" id="folderNameInput" placeholder="Nombre de la nueva carpeta...">
+    <div class="section">
+        <input type="text" id="folderNameInput" placeholder="Nombre de nueva carpeta...">
         <button class="btn btn-folder" onclick="createFolder()">📂 Crear Carpeta</button>
     </div>
 
     <!-- Subir Archivo -->
-    <div style="margin-top: 15px;">
+    <div class="section">
         <input type="file" id="fileInput">
-        <button class="btn" onclick="uploadFile()">⬆️ Subir Archivo aquí</button>
+        <button class="btn" onclick="uploadFile()">⬆️ Subir Archivo</button>
     </div>
 
     <p id="status" class="loading"></p>
@@ -55,7 +50,6 @@
 </div>
 
 <script>
-    // Configura tus credenciales de Supabase aquí:
     const SUPABASE_URL = 'sb_publishable_6SOOP42opdGMpUt0n7jTFg_5MZsXLTU';
     const SUPABASE_ANON_KEY = 'sb_secret_67mAJI41UUlz_cdbccs3Xw_3OS1PQPV';
     const BUCKET_NAME = 'archivos-mama';
@@ -69,15 +63,11 @@
         const pathDiv = document.getElementById('currentPath');
         const backBtn = document.getElementById('backBtn');
         
-        status.innerText = "Cargando archivos...";
+        status.innerText = "Cargando...";
         fileList.innerHTML = "";
-        pathDiv.innerText = "Ruta actual: /" + currentFolder;
+        pathDiv.innerText = "Ruta: /" + currentFolder;
 
-        if (currentFolder !== '') {
-            backBtn.style.display = 'inline-block';
-        } else {
-            backBtn.style.display = 'none';
-        }
+        backBtn.style.display = currentFolder !== '' ? 'block' : 'none';
 
         const { data, error } = await supabaseClient.storage.from(BUCKET_NAME).list(currentFolder, {
             sortBy: { column: 'name', order: 'asc' }
@@ -90,38 +80,37 @@
 
         status.innerText = "";
 
-        if (data.length === 0) {
-            fileList.innerHTML = "<li style='justify-content:center; color:#95a5a6;'>La carpeta está vacía</li>";
+        if (!data || data.length === 0) {
+            fileList.innerHTML = "<li style='justify-content:center; color:#95a5a6;'>Carpeta vacía</li>";
             return;
         }
 
         data.forEach(item => {
-            const li = document.createElement('li');
-            
-            // Supabase representa las carpetas como elementos vacíos con un nombre que termina en '/' o metadatos especiales, 
-            // pero para navegar simularemos las carpetas con nombres o sufijos limpios.
-            const isFolder = item.id === null && !item.name.includes('.');
+            if (item.name === '.emptyFolderPlaceholder' || item.name === '.keep') return;
 
-            if (isFolder || item.name === '.emptyFolderPlaceholder') {
-                if(item.name === '.emptyFolderPlaceholder') return; // Ocultar marcador interno
-                
+            const li = document.createElement('li');
+            const isFolder = item.id === null; // En Supabase los objetos sin ID estructurado o tamaño suelen ser carpetas
+
+            if (isFolder) {
                 li.innerHTML = `
-                    <span style="font-weight:bold; color:#d35400; cursor:pointer;" onclick="openFolder('${item.name}')">
+                    <div class="file-info" style="cursor:pointer; font-weight:bold; color:#e67e22;" onclick="openFolder('${item.name}')">
                         📁 ${item.name}/
-                    </span>
-                    <div class="actions">
-                        <button onclick="deleteItem('${item.name}')">Borrar</button>
                     </div>
+                    <button class="btn btn-danger" onclick="deleteItem('${item.name}', true)">Borrar</button>
                 `;
             } else {
                 const filePath = currentFolder ? `${currentFolder}/${item.name}` : item.name;
                 const { data: publicUrlData } = supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+                const fileUrl = publicUrlData.publicUrl;
+
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name);
                 
                 li.innerHTML = `
-                    <a href="${publicUrlData.publicUrl}" target="_blank">📄 ${item.name}</a>
-                    <div class="actions">
-                        <button onclick="deleteItem('${item.name}')">Borrar</button>
+                    <div class="file-info">
+                        ${isImage ? `<img src="${fileUrl}" alt="img">` : '📄'}
+                        <a href="${fileUrl}" target="_blank">${item.name}</a>
                     </div>
+                    <button class="btn btn-danger" onclick="deleteItem('${item.name}', false)">Borrar</button>
                 `;
             }
             fileList.appendChild(li);
@@ -133,7 +122,7 @@
         const status = document.getElementById('status');
 
         if (fileInput.files.length === 0) {
-            alert("Por favor selecciona un archivo primero.");
+            alert("Selecciona un archivo primero.");
             return;
         }
 
@@ -142,14 +131,14 @@
 
         status.innerText = "Subiendo archivo...";
 
-        const { data, error } = await supabaseClient.storage.from(BUCKET_NAME).upload(filePath, file, {
+        const { error } = await supabaseClient.storage.from(BUCKET_NAME).upload(filePath, file, {
             upsert: true
         });
 
         if (error) {
             status.innerText = "Error al subir: " + error.message;
         } else {
-            status.innerText = "¡Archivo subido con éxito!";
+            status.innerText = "¡Subido con éxito!";
             fileInput.value = "";
             listFiles();
         }
@@ -157,15 +146,15 @@
 
     async function createFolder() {
         const folderInput = document.getElementById('folderNameInput');
-        const folderName = folderInput.value.trim();
+        const folderName = folderInput.value.trim().replace(/\//g, '');
         const status = document.getElementById('status');
 
         if (!folderName) {
-            alert("Escribe un nombre para la carpeta.");
+            alert("Escribe un nombre válido para la carpeta.");
             return;
         }
 
-        // En Supabase, para crear una carpeta se sube un archivo vacío llamado .keep dentro de esa ruta
+        // Supabase requiere un archivo centinela (.keep) dentro de una ruta para que se reconozca la carpeta
         const folderPath = currentFolder ? `${currentFolder}/${folderName}/.keep` : `${folderName}/.keep`;
         const emptyFile = new Blob([''], { type: 'text/plain' });
 
@@ -194,16 +183,23 @@
         listFiles();
     }
 
-    async function deleteItem(itemName) {
-        if (!confirm(`¿Estás seguro de eliminar "${itemName}"?`)) return;
+    async function deleteItem(itemName, isFolder) {
+        if (!confirm(`¿Eliminar "${itemName}"?`)) return;
 
         const status = document.getElementById('status');
-        const targetPath = currentFolder ? `${currentFolder}/${itemName}` : itemName;
-
         status.innerText = "Eliminando...";
 
-        // Nota: Si es una carpeta, se deben borrar sus elementos o el archivo .keep interno.
-        const { error } = await supabaseClient.storage.from(BUCKET_NAME).remove([targetPath]);
+        let pathsToDelete = [];
+        if (isFolder) {
+            // Si es carpeta, borramos el archivo interno .keep
+            const folderPath = currentFolder ? `${currentFolder}/${itemName}/.keep` : `${itemName}/.keep`;
+            pathsToDelete.push(folderPath);
+        } else {
+            const filePath = currentFolder ? `${currentFolder}/${itemName}` : itemName;
+            pathsToDelete.push(filePath);
+        }
+
+        const { error } = await supabaseClient.storage.from(BUCKET_NAME).remove(pathsToDelete);
 
         if (error) {
             status.innerText = "Error al eliminar: " + error.message;
@@ -213,7 +209,6 @@
         }
     }
 
-    // Cargar archivos al abrir la página
     listFiles();
 </script>
 
